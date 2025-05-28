@@ -1,0 +1,101 @@
+.content-wrapper {
+  padding: 20px;
+}
+.table-container, .chart-container {
+  opacity: 0;
+  transform: translateY(20px);
+}
+.error {
+  color: #dc3545;
+  font-weight: 600;
+  text-align: center;
+  opacity: 0;
+}
+.btn-custom {
+  transition: transform 0.2s;
+}
+.btn-custom:hover {
+  transform: translateY(-2px);
+}
+.sidebar {
+  position: fixed;
+  height: 100%;
+}
+.main-header {
+  z-index: 1000;
+}
+
+/* Estilos personalizados */
+.error {
+  color: #dc3545;
+  background-color: #f8d7da;
+  padding: 10px;
+  border-radius: 5px;
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.table-container, .chart-container {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.btn-custom {
+  width: 100%;
+  max-width: 200px;
+}
+
+.table-responsive {
+  overflow-x: auto;
+}
+
+#loading {
+  font-size: 1.2em;
+  color: #007bff;
+}
+
+/* Estilos personalizados */
+.error {
+  color: #dc3545;
+  background-color: #f8d7da;
+  padding: 10px;
+  border-radius: 5px;
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.table-container, .chart-container {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.btn-custom {
+  width: 100%;
+  max-width: 200px;
+}
+
+.table-responsive {
+  overflow-x: auto;
+}
+
+#loading {
+  font-size: 1.2em;
+  color: #007bff;
+}
+
+/* Estilos para las tarjetas de estadísticas */
+#recordsLejos {
+  color: #ff6384; /* Color para Lejos */
+}
+#recordsIntermedio {
+  color: #36a2eb; /* Color para Intermedio */
+}
+#recordsCerca {
+  color: #4bc0c0; /* Color para Cerca */
+}
+
+/* Estilo para el enlace activo en el sidebar */
+.nav-link.active {
+  background-color: #007bff !important;
+  color: #fff !important;
+}
