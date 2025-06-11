@@ -1,4 +1,3 @@
-
 let allRecords = [];
 let filteredRecords = [];
 let distanciaChart;
@@ -16,10 +15,11 @@ async function fetchRecords() {
   document.getElementById('error').style.display = 'none';
   try {
     const response = await axios.get('https://lockreminder.onrender.com/ver');
-    allRecords = response.data.filter(record => 
-      record.distancia && record.nombre && record.fecha
-    );
+    allRecords = response.data
+      .filter(record => record.distancia && record.nombre && record.fecha)
+      .sort((a, b) => new Date(b.fecha) - new Date(a.fecha)); // Ordenar por fecha descendente
     currentPage = 1;
+    displayLastRecord(); // Mostrar el último registro
     applyFilters();
     animateElements();
   } catch (error) {
@@ -42,7 +42,7 @@ async function fetchRecords() {
 function debounce(func, wait) {
   let timeout;
   return function executedFunction(...args) {
-    const later = () => {
+    const later = () => Cypress
       clearTimeout(timeout);
       func(...args);
     };
@@ -77,7 +77,6 @@ function filterByDistancia(distancia) {
   });
 
   if (distancia === '') {
-    // Mostrar todos los gráficos de tendencia
     trendCharts.forEach(chart => {
       document.getElementById(chart).style.display = 'block';
     });
@@ -100,6 +99,7 @@ function searchRecords() {
      new Date(record.fecha).toLocaleString('es-ES').toLowerCase().includes(searchTerm))
   );
   currentPage = 1;
+  displayLastRecord(); // Actualizar el último registro después de buscar
   updatePage();
   updateCharts(filteredRecords);
 }
@@ -127,25 +127,51 @@ function applyFilters() {
   filteredRecords = allRecords.filter(record => 
     !currentFilter || record.distancia === currentFilter
   );
+  displayLastRecord(); // Actualizar el último registro después de filtrar
   updatePage();
   updateCharts(filteredRecords);
   updateStats(filteredRecords);
 }
 
 function updateStats(data) {
-  // Total de registros
   document.getElementById('totalRecords').innerText = data.length;
-
-  // Contar registros por distancia
   const distanciaCounts = { Lejos: 0, Intermedio: 0, Cerca: 0 };
   data.forEach(record => {
     if (record.distancia in distanciaCounts) distanciaCounts[record.distancia]++;
   });
-
-  // Actualizar tarjetas de registros por distancia
   document.getElementById('recordsLejos').innerText = distanciaCounts.Lejos;
   document.getElementById('recordsIntermedio').innerText = distanciaCounts.Intermedio;
   document.getElementById('recordsCerca').innerText = distanciaCounts.Cerca;
+}
+
+function displayLastRecord() {
+  const lastRecord = allRecords[0]; // El primer registro después de ordenar por fecha descendente
+  const lastRecordElement = document.getElementById('lastRecord');
+  if (lastRecord) {
+    const date = new Date(lastRecord.fecha);
+    const formattedDate = date.toLocaleString('es-ES', {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+    lastRecordElement.innerHTML = `
+      <strong>Distancia:</strong> ${lastRecord.distancia || 'N/A'}<br>
+      <strong>Nombre:</strong> ${lastRecord.nombre || 'N/A'}<br>
+      <strong>Fecha:</strong> ${formattedDate || 'N/A'}
+    `;
+    anime({
+      targets: '.card-primary:has(#lastRecord)',
+      scale: [1, 1.05, 1],
+      opacity: [0.8, 1],
+      duration: 1000,
+      easing: 'easeOutElastic(1, 0.5)'
+    });
+  } else {
+    lastRecordElement.innerHTML = 'No hay datos disponibles';
+  }
 }
 
 function displayRecords(data) {
@@ -154,6 +180,7 @@ function displayRecords(data) {
   const start = (currentPage - 1) * recordsPerPage;
   const end = start + recordsPerPage;
   const paginatedData = data.slice(start, end);
+  const lastRecord = allRecords[0]; // Último registro para comparar
   paginatedData.forEach(record => {
     const row = document.createElement('tr');
     const date = new Date(record.fecha);
@@ -164,11 +191,13 @@ function displayRecords(data) {
       hour: '2-digit',
       minute: '2-digit'
     });
+    const isLastRecord = lastRecord && record.fecha === lastRecord.fecha && record.nombre === lastRecord.nombre && record.distancia === lastRecord.distancia;
     row.innerHTML = `
-      <td>${record.distancia || 'N/A'}</td>
+      <td>${record.distancia || 'N/A'}${isLastRecord ? ' <span class="new-badge">Nuevo</span>' : ''}</td>
       <td>${record.nombre || 'N/A'}</td>
       <td>${formattedDate || 'N/A'}</td>
     `;
+    if (isLastRecord) row.classList.add('highlight-last');
     recordsContainer.appendChild(row);
   });
   updatePagination(data);
@@ -262,28 +291,23 @@ function updateDistanciaChart(data) {
 }
 
 function updateTrendChartLejos(data) {
-  // Filtrar solo los registros con distancia "Lejos"
   const lejosData = data.filter(record => record.distancia === 'Lejos');
-
-  // Agrupar por fecha
   const dates = {};
   lejosData.forEach(record => {
     const date = new Date(record.fecha).toLocaleDateString('es-ES');
     dates[date] = (dates[date] || 0) + 1;
   });
 
-  // Establecer un rango de fechas (últimos 7 días hasta la fecha actual: 26 de mayo de 2025)
-  const endDate = new Date('2025-05-26T13:44:00-06:00'); // Fecha actual (01:44 PM CST)
+  const endDate = new Date();
   const startDate = new Date(endDate);
-  startDate.setDate(endDate.getDate() - 6); // 7 días atrás (20 de mayo de 2025)
+  startDate.setDate(endDate.getDate() - 6);
 
-  // Generar etiquetas para los últimos 7 días
   const labels = [];
   const values = [];
   for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
     const dateStr = d.toLocaleDateString('es-ES');
     labels.push(dateStr);
-    values.push(dates[dateStr] || 0); // Si no hay datos para esa fecha, usar 0
+    values.push(dates[dateStr] || 0);
   }
 
   const ctx = document.getElementById('trendChartLejos').getContext('2d');
@@ -309,7 +333,7 @@ function updateTrendChartLejos(data) {
         y: { 
           beginAtZero: true, 
           title: { display: true, text: 'Cantidad' },
-          suggestedMax: Math.max(...values, 1) + 1 // Asegura un máximo razonable en el eje Y
+          suggestedMax: Math.max(...values, 1) + 1
         },
         x: { title: { display: true, text: 'Fecha' } }
       },
@@ -328,28 +352,23 @@ function updateTrendChartLejos(data) {
 }
 
 function updateTrendChartIntermedio(data) {
-  // Filtrar solo los registros con distancia "Intermedio"
   const intermedioData = data.filter(record => record.distancia === 'Intermedio');
-
-  // Agrupar por fecha
   const dates = {};
   intermedioData.forEach(record => {
     const date = new Date(record.fecha).toLocaleDateString('es-ES');
     dates[date] = (dates[date] || 0) + 1;
   });
 
-  // Establecer un rango de fechas (últimos 7 días hasta la fecha actual: 26 de mayo de 2025)
-  const endDate = new Date('2025-05-26T13:44:00-06:00'); // Fecha actual (01:44 PM CST)
+  const endDate = new Date();
   const startDate = new Date(endDate);
-  startDate.setDate(endDate.getDate() - 6); // 7 días atrás (20 de mayo de 2025)
+  startDate.setDate(endDate.getDate() - 6);
 
-  // Generar etiquetas para los últimos 7 días
   const labels = [];
   const values = [];
   for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
     const dateStr = d.toLocaleDateString('es-ES');
     labels.push(dateStr);
-    values.push(dates[dateStr] || 0); // Si no hay datos para esa fecha, usar 0
+    values.push(dates[dateStr] || 0);
   }
 
   const ctx = document.getElementById('trendChartIntermedio').getContext('2d');
@@ -375,7 +394,7 @@ function updateTrendChartIntermedio(data) {
         y: { 
           beginAtZero: true, 
           title: { display: true, text: 'Cantidad' },
-          suggestedMax: Math.max(...values, 1) + 1 // Asegura un máximo razonable en el eje Y
+          suggestedMax: Math.max(...values, 1) + 1
         },
         x: { title: { display: true, text: 'Fecha' } }
       },
@@ -394,28 +413,23 @@ function updateTrendChartIntermedio(data) {
 }
 
 function updateTrendChartCerca(data) {
-  // Filtrar solo los registros con distancia "Cerca"
   const cercaData = data.filter(record => record.distancia === 'Cerca');
-
-  // Agrupar por fecha
   const dates = {};
   cercaData.forEach(record => {
     const date = new Date(record.fecha).toLocaleDateString('es-ES');
     dates[date] = (dates[date] || 0) + 1;
   });
 
-  // Establecer un rango de fechas (últimos 7 días hasta la fecha actual: 26 de mayo de 2025)
-  const endDate = new Date('2025-05-26T13:44:00-06:00'); // Fecha actual (01:44 PM CST)
+  const endDate = new Date();
   const startDate = new Date(endDate);
-  startDate.setDate(endDate.getDate() - 6); // 7 días atrás (20 de mayo de 2025)
+  startDate.setDate(endDate.getDate() - 6);
 
-  // Generar etiquetas para los últimos 7 días
   const labels = [];
   const values = [];
   for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
     const dateStr = d.toLocaleDateString('es-ES');
     labels.push(dateStr);
-    values.push(dates[dateStr] || 0); // Si no hay datos para esa fecha, usar 0
+    values.push(dates[dateStr] || 0);
   }
 
   const ctx = document.getElementById('trendChartCerca').getContext('2d');
@@ -441,7 +455,7 @@ function updateTrendChartCerca(data) {
         y: { 
           beginAtZero: true, 
           title: { display: true, text: 'Cantidad' },
-          suggestedMax: Math.max(...values, 1) + 1 // Asegura un máximo razonable en el eje Y
+          suggestedMax: Math.max(...values, 1) + 1
         },
         x: { title: { display: true, text: 'Fecha' } }
       },
@@ -471,7 +485,7 @@ function updatePage() {
 
 function animateElements() {
   anime({
-    targets: '.table-container, .chart-container, #error, .card-primary',
+    targets: '.table-container, .chart-container, #error, .card-primary:not(:has(#lastRecord))',
     opacity: [0, 1],
     translateY: [20, 0],
     duration: 800,
